@@ -1,2 +1,1 @@
-# amppd
-Parkinson's Disease research using AMP-PD data
+# Parkinson's Disease research using AMP-PD data
