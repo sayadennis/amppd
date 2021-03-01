@@ -9,8 +9,18 @@ from datetime import datetime
 
 def get_format_vals(string):
     gt = string.split(":")[0]
-    dp = int(string.split(":")[2])
-    gq = int(string.split(":")[3])
+    dp = string.split(":")[2]
+    if dp == ".":
+        dp = 0
+        print("DP missing.")
+    else:
+        dp = int(dp)
+    gq = string.split(":")[3]
+    if gq == ".":
+        gq = 0
+        print("GQ missing.")
+    else:
+        gq = int(gq)
     return gt, dp, gq
 
 def get_count(gt_string):
@@ -42,6 +52,8 @@ def write_matrix(fin_pattern, out_fn):
                 gt, dp, gq = get_format_vals(vcf.iloc[i,[x==subid for x in list(vcf.columns)]].values[0]) # gt = "0/0", "1/0", "2/2" etc.
                 if ((dp >= 10) & (gq >= 10)):
                     ct_dict[subid] = get_count(gt)
+                else:
+                    ct_dict[subid] = 0
             # if there is already a column in mx named gene_name, put count value in mx.iloc[i, <column location>]
             # if not, create a new column named gene_names and put count calue in mx.iloc[i, <new column location>]
             if gene_name in list(mx.columns):
@@ -52,5 +64,5 @@ def write_matrix(fin_pattern, out_fn):
                 for subid in subids:
                     mx.loc[subid][gene_name] = ct_dict[subid]
         # update on progress 
-        print("Done counting for patient {}... {}".format(subid, datetime.now().strftime("%m-%d-%Y, %H:%M:%S")))
+        print("Done counting for file {}... {}".format(fn, datetime.now().strftime("%m-%d-%Y, %H:%M:%S")))
     mx.to_csv(out_fn, header=True, index=True)
