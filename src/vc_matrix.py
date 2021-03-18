@@ -8,20 +8,22 @@ from datetime import datetime
 # Write a line with variant counts in the appropriate gene column into the final matrix.
 
 def get_format_vals(string):
+    dp_missct = 0
+    gq_missct = 0
     gt = string.split(":")[0]
     dp = string.split(":")[2]
     if dp == ".":
         dp = 0
-        print("DP missing.")
+        dp_missct += 1
     else:
         dp = int(dp)
     gq = string.split(":")[3]
     if gq == ".":
         gq = 0
-        print("GQ missing.")
+        gq_missct += 1
     else:
         gq = int(gq)
-    return gt, dp, gq
+    return gt, dp, gq, dp_missct, gq_missct
 
 def get_count(gt_string):
     ct = 0
@@ -41,15 +43,21 @@ def write_matrix(fin_pattern, out_fn):
         subids = list(vcf.columns)[146:] # Define list of patient IDs 
         for subid in subids: # Check whether these subjects already have rows in mx, add row if not
             if subid not in mx.columns:
-                mx = mx.append(pd.DataFrame(None, index=[subid], columns=mx.columns))
+                mx = mx.append(pd.DataFrame(0, index=[subid], columns=mx.columns))
             else:
                 continue
         # Below: loop through rows of VCF, count variants for each patient
+        dp_miss = 0
+        gq_miss = 0
         for i in range(vcf.shape[0]): # loop through lines of VCF
             ct_dict = {} # dictionary that sill store patient's mutation count
             gene_name = vcf["Gene.refGene"].iloc[i] # refGene gene name
             for subid in subids: # Loop through subjects and fill in ct_dict for this position
-                gt, dp, gq = get_format_vals(vcf.iloc[i,[x==subid for x in list(vcf.columns)]].values[0]) # gt = "0/0", "1/0", "2/2" etc.
+                gt, dp, gq, dp_missct, gq_missct = get_format_vals(
+                    vcf.iloc[i,[x==subid for x in list(vcf.columns)]].values[0]
+                ) # gt = "0/0", "1/0", "2/2" etc.
+                dp_miss += dp_missct
+                gq_miss += gq_missct
                 if ((dp >= 10) & (gq >= 10)):
                     ct_dict[subid] = get_count(gt)
                 else:
@@ -58,11 +66,13 @@ def write_matrix(fin_pattern, out_fn):
             # if not, create a new column named gene_names and put count calue in mx.iloc[i, <new column location>]
             if gene_name in list(mx.columns):
                 for subid in subids:
-                    mx.loc[subid][gene_name] = ct_dict[subid]
+                    mx.loc[subid][gene_name] += ct_dict[subid]
             else:
                 mx[gene_name] = 0 # add new column with default value zero 
                 for subid in subids:
                     mx.loc[subid][gene_name] = ct_dict[subid]
         # update on progress 
         print("Done counting for file {}... {}".format(fn, datetime.now().strftime("%m-%d-%Y, %H:%M:%S")))
+        print("Missing rate of DP: {}".format(dp_miss/(len(subids)*vcf.shape[0])))
+        print("Missing rate of GQ: {}\n".format(gq_miss/(len(subids)*vcf.shape[0])))
     mx.to_csv(out_fn, header=True, index=True)
