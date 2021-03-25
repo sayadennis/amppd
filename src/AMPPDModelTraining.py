@@ -10,6 +10,7 @@ from sklearn.linear_model import ElasticNet
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
+import xgboost as xgb
 # from sklearn.neural_network import MLPClassifier
 
 # tools for cross-validation 
@@ -91,8 +92,8 @@ def elasticnet_cv(X_train, y_train, l1_ratio=np.arange(0.1, 1., step=0.1), eps=1
 # Support vector machine cross-validation 
 svm_params = {
     "kernel" : ["linear", "rbf"], 
-    "C" : [1e-3, 1e-2, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3],  # 1e-5, 1e-4, 
-    "gamma" : [1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3] # 1e-5, 1e-4, 
+    "C" : [1e-3, 1e-2, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3],
+    "gamma" : [1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3]
 }
 
 def svm_cv(X_train, y_train, svm_params=svm_params, seed=0):
@@ -117,14 +118,14 @@ def svm_cv(X_train, y_train, svm_params=svm_params, seed=0):
 # Random Forest cross-validation
 rf_params = {
     # "criterion" : ["gini", "entropy"],
-    "max_depth" : [5, 10, 25, 50, 75], # or could set min_samples_split 
+    "max_depth" : [3, 5, 10, 25, 50], # or could set min_samples_split 
     "min_samples_leaf" : [2, 4, 6, 8, 10, 15, 20]
 }
 
 def rf_cv(X_train, y_train, rf_params=rf_params, seed=0):
     X_train, y_train = confirm_numpy(X_train, y_train)
     gsRF = GridSearchCV(
-        RandomForestClassifier(n_estimators=100, criterion="gini", max_features="auto", class_weight="balanced", n_jobs=8, random_state=seed),
+        RandomForestClassifier(n_estimators=300, criterion="gini", max_features="auto", class_weight="balanced", n_jobs=8, random_state=seed),
         param_grid=rf_params, n_jobs=8, scoring="balanced_accuracy", refit=True,
         cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
     )
@@ -164,6 +165,43 @@ def gb_cv(X_train, y_train, gb_params=gb_params, seed=0):
     )
     return opt_params, opt_mean_score, gsGB
 
+
+# XGBoost cross-validation
+xgb_params = {
+    "learning_rate" : [0.01, 0.1, 0.2],
+    "max_depth" : [5, 10, 15, 25],
+    "colsample_bytree" : [0.3, 0.5, 0.7, 0.9],
+    "gamma" : [0.1, 1, 2]
+}
+
+def xgb_cv(X_train, y_train, xgb_params=xgb_params, seed=0):
+    X_train, y_train = confirm_numpy(X_train, y_train)
+    # use regular GridSearchCV
+    gsXGB = GridSearchCV(
+        xgb.XGBClassifier(objective="reg:logistic", subsample=1, reg_alpha=0, reg_lambda=1, n_estimators=300, seed=seed),
+        param_grid=xgb_params, n_jobs=8, scoring="balanced_accuracy", refit=True,
+        cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
+    )
+    gsXGB.fit(X_train, y_train)
+    opt_params = gsXGB.best_params_
+    opt_mean_score = np.mean(
+        gsXGB.cv_results_["mean_test_score"][
+            (gsXGB.cv_results_["param_learning_rate"] == opt_params["learning_rate"]) &
+            (gsXGB.cv_results_["param_max_depth"] == opt_params["max_depth"]) &
+            (gsXGB.cv_results_["param_colsample_bytree"] == opt_params["colsample_bytree"]) &
+            (gsXGB.cv_results_["param_n_estimators"] == opt_params["n_estimators"]) &
+            (gsXGB.cv_results_["param_gamma"] == opt_params["gamma"])
+        ]
+    )
+    xgb_clf = xgb.XGBClassifier(
+        objective="reg:logistic", subsample=1, reg_alpha=0, reg_lambda=1, n_estimators=300, seed=seed,
+        learning_rate=opt_params["learning_rate"], max_depth=opt_params["max_depth"],
+        colsample_bytree=opt_params["colsample_bytree"], n_estimators=opt_params["n_estimators"], gamma=opt_params["gamma"]
+    )
+    xgb_clf.fit(X_train, y_train)
+    return opt_params, opt_mean_score, xgb_clf
+
+
 ## Function that will take classifier and evaluate on test set
 def evaluate_model(clf, X_test, y_test):
     pf_dict = {} # performance dictionary
@@ -180,13 +218,15 @@ def evaluate_model(clf, X_test, y_test):
 
 ## Function that will take X_train, y_train, run all the hyperparameter tuning, and record cross-validation performance 
 def record_tuning(X_train, y_train, X_test, y_test, outfn):
+    X_test, y_test = confirm_numpy(X_test, y_test)
     tuner_dict = {
         "LRM" : lrm_cv,
         "SVM" : svm_cv,
         "LASSO" : lasso_cv,
         "ElasticNet" : elasticnet_cv,
         "RF" : rf_cv,
-        "GB" : gb_cv
+        "GB" : gb_cv,
+        "XGB" : xgb_cv
     }
     cv_record = pd.DataFrame(
         None, index=tuner_dict.keys(), 
@@ -249,7 +289,8 @@ def record_tuning_NMF(X_train, y_train, X_test, y_test, outfn, k_list=None):
         "LASSO" : lasso_cv,
         "ElasticNet" : elasticnet_cv,
         "RF" : rf_cv,
-        "GB" : gb_cv
+        "GB" : gb_cv,
+        "XGB" : xgb_cv
     }
 
     cv_record = pd.DataFrame(
@@ -270,10 +311,10 @@ def record_tuning_NMF(X_train, y_train, X_test, y_test, outfn, k_list=None):
             ) & np.array(
                 [x == k for x in cv_record["NMF_k"]]
             )
-            cv_record.iloc[bool_loc,[x == "opt_params" for x in cv_record.columns]] = str(opt_params)
-            cv_record.iloc[bool_loc,[x == "crossval roc/acc" for x in cv_record.columns]] = opt_score
+            cv_record.loc[bool_loc, [x == "opt_params" for x in cv_record.columns]] = str(opt_params)
+            cv_record.loc[bool_loc, [x == "crossval roc/acc" for x in cv_record.columns]] = opt_score
             pf_dict = evaluate_model(clf, F_test, y_test)
             for pf_key in pf_dict:
-                cv_record.iloc[bool_loc,[x == pf_key for x in cv_record.columns]] = pf_dict[pf_key]
+                cv_record.loc[bool_loc, [x == pf_key for x in cv_record.columns]] = pf_dict[pf_key]
     cv_record.to_csv(outfn, header=True, index=True)
     return
