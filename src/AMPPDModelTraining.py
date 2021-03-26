@@ -15,9 +15,10 @@ import xgboost as xgb
 
 # tools for cross-validation 
 from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.linear_model import LassoCV
-from sklearn.linear_model import ElasticNetCV
+# from sklearn.linear_model import LogisticRegressionCV
+# from sklearn.linear_model import LassoCV
+# from sklearn.linear_model import ElasticNetCV
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import GridSearchCV
 from sklearn import metrics
@@ -32,61 +33,83 @@ import matplotlib.pyplot as plt
 # Function that will convert inputs into compatible format 
 def confirm_numpy(X, y):
     if type(X) != np.ndarray:
-        X = X.to_numpy()
+        X = X.to_numpy(dtype=int)
+    else:
+        X = np.array(X, dtype=int)
     if type(y) != np.ndarray:
-        y = y.to_numpy()
+        y = y.to_numpy(dtype=int)
+    else:
+        y = np.array(y, dtype=int)
     y = y.ravel() # convert to 1D array 
     return X, y
 
 
 # Logistic regression cross-validation 
-def lrm_cv(X_train, y_train, lrm_Cs=[1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3], seed=0):
+lrm_params = {
+    "C" : [1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3]
+}
+
+def lrm_cv(X_train, y_train, lrm_Cs=lrm_params, seed=0):
     X_train, y_train = confirm_numpy(X_train, y_train)
-    lrCV = LogisticRegressionCV(Cs=lrm_Cs, class_weight="balanced", n_jobs=8, max_iter=1000,
-        scoring="roc_auc", cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True), refit=True
+    gsLR = GridSearchCV(
+        LogisticRegression(penalty="l2", class_weight="balanced", max_iter=1000, random_state=seed),
+        param_grid=lrm_Cs, n_jobs=8, scoring="balanced_accuracy", refit=True,
+        cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
     )
-    lrCV.fit(X_train, y_train)
-    opt_C = lrCV.C_[0]
-    opt_mean_score = np.mean(lrCV.scores_[1][:,np.where(lrm_Cs == opt_C)])
-    return opt_C, opt_mean_score, lrCV
+    gsLR.fit(X_train, y_train)
+    opt_params = gsLR.best_params_
+    opt_mean_score = np.mean(
+        gsLR.cv_results_["mean_test_score"][
+            (gsLR.cv_results_["param_C"] == opt_params["C"])
+        ]
+    )
+    return opt_params, opt_mean_score, gsLR
 
 
 # LASSO cross-validation
-def lasso_cv(X_train, y_train, eps=1e-2, n_alphas=20, seed=0):
+lasso_params = {
+    "C" : [1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3]
+}
+
+def lasso_cv(X_train, y_train, lasso_alphas=lasso_params, seed=0):
     X_train, y_train = confirm_numpy(X_train, y_train)
-    lasscv = LassoCV(
-        eps=eps, n_alphas=n_alphas, max_iter=1000, n_jobs=8,
-        cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True), random_state=seed
-    ).fit(X_train, y_train)
-    opt_alpha = lasscv.alpha_
-    # get the cross-validation ROC when trained with this optimal alpha
-    lasso = Lasso(alpha=opt_alpha, max_iter=1000, random_state=seed)
-    lasso.fit(X_train, y_train)
-    scores = cross_val_score(
-        lasso, X_train, y_train, scoring="roc_auc", 
+    gsLS = GridSearchCV(
+        LogisticRegression(penalty="l1", solver="liblinear", class_weight="balanced", max_iter=1000, random_state=seed),
+        param_grid=lasso_params, n_jobs=8, scoring="balanced_accuracy", refit=True,
         cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
     )
-    opt_mean_score = np.mean(scores)
-    return opt_alpha, opt_mean_score, lasso
+    gsLS.fit(X_train, y_train)
+    opt_params = gsLS.best_params_
+    opt_mean_score = np.mean(
+        gsLS.cv_results_["mean_test_score"][
+            (gsLS.cv_results_["param_C"] == opt_params["C"])
+        ]
+    )
+    return opt_params, opt_mean_score, gsLS
 
 
 # Elastic Net cross-validation 
-def elasticnet_cv(X_train, y_train, l1_ratio=np.arange(0.1, 1., step=0.1), eps=1e-2, n_aplhas=20, seed=0):
+elasticnet_params = {
+    "C" : [1e-3, 1e-2, 1e-1, 1., 1e+1, 1e+2, 1e+3],
+    "l1_ratio" : np.arange(0.1, 1., step=0.1)
+}
+
+def elasticnet_cv(X_train, y_train, elasticnet_params=elasticnet_params, seed=0):
     X_train, y_train = confirm_numpy(X_train, y_train)
-    elastcv = ElasticNetCV(
-        l1_ratio=l1_ratio, eps=1e-3, n_alphas=n_aplhas, max_iter=1000, n_jobs=8,
-        cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True), random_state=seed
-    ).fit(X_train, y_train)
-    opt_l1 = elastcv.l1_ratio_
-    opt_alpha = elastcv.alpha_
-    elast = ElasticNet(alpha=opt_alpha, l1_ratio=opt_l1, random_state=seed)
-    elast.fit(X_train, y_train)
-    scores = cross_val_score(
-        elast, X_train, y_train, scoring="roc_auc",
+    gsEN = GridSearchCV(
+        LogisticRegression(penalty="elasticnet", solver="saga", class_weight="balanced", max_iter=1000, random_state=seed),
+        param_grid=elasticnet_params, n_jobs=8, scoring="balanced_accuracy", refit=True,
         cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
     )
-    opt_mean_score = np.mean(scores)
-    return {"L1" : opt_l1, "alpha" : opt_alpha}, opt_mean_score, elast
+    gsEN.fit(X_train, y_train)
+    opt_params = gsEN.best_params_
+    opt_mean_score = np.mean(
+        gsEN.cv_results_["mean_test_score"][
+            (gsEN.cv_results_["param_C"] == opt_params["C"]) &
+            (gsEN.cv_results_["param_l1_ratio"] == opt_params["l1_ratio"])
+        ]
+    )
+    return opt_params, opt_mean_score, gsEN
 
 
 # Support vector machine cross-validation 
@@ -100,7 +123,7 @@ def svm_cv(X_train, y_train, svm_params=svm_params, seed=0):
     X_train, y_train = confirm_numpy(X_train, y_train)
     gsCV = GridSearchCV(
         SVC(class_weight="balanced", max_iter=1000, probability=True, random_state=seed),  #, decision_function_shape="ovr"
-        param_grid=svm_params, n_jobs=8, scoring="roc_auc", refit=True,
+        param_grid=svm_params, n_jobs=8, scoring="balanced_accuracy", refit=True,
         cv=StratifiedKFold(n_splits=5, random_state=seed, shuffle=True)
     )
     gsCV.fit(X_train, y_train)
@@ -189,35 +212,45 @@ def xgb_cv(X_train, y_train, xgb_params=xgb_params, seed=0):
             (gsXGB.cv_results_["param_learning_rate"] == opt_params["learning_rate"]) &
             (gsXGB.cv_results_["param_max_depth"] == opt_params["max_depth"]) &
             (gsXGB.cv_results_["param_colsample_bytree"] == opt_params["colsample_bytree"]) &
-            (gsXGB.cv_results_["param_n_estimators"] == opt_params["n_estimators"]) &
             (gsXGB.cv_results_["param_gamma"] == opt_params["gamma"])
         ]
     )
     xgb_clf = xgb.XGBClassifier(
         objective="reg:logistic", subsample=1, reg_alpha=0, reg_lambda=1, n_estimators=300, seed=seed,
         learning_rate=opt_params["learning_rate"], max_depth=opt_params["max_depth"],
-        colsample_bytree=opt_params["colsample_bytree"], n_estimators=opt_params["n_estimators"], gamma=opt_params["gamma"]
+        colsample_bytree=opt_params["colsample_bytree"], gamma=opt_params["gamma"]
     )
     xgb_clf.fit(X_train, y_train)
     return opt_params, opt_mean_score, xgb_clf
 
 
 ## Function that will take classifier and evaluate on test set
-def evaluate_model(clf, X_test, y_test):
+def evaluate_model(clf, X_test, y_test, multiclass=False):
     pf_dict = {} # performance dictionary
-    if ((type(clf) == Lasso) | (type(clf) == ElasticNet)): # these classifiers output continuous values with .predict() method 
-        y_pred = np.array(clf.predict(X_test).round(), dtype=int)
+    if multiclass == False:
+        y_pred = np.array(clf.predict(X_test).round(), dtype=int) # round with dtype=int b/c Lasso and ElasticNet outputs continuous values with the .predict() method
+        y_prob = clf.predict_proba(X_test)[:,1]
+        pf_dict["test_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
+        pf_dict["roc_auc"] = metrics.roc_auc_score(y_test, y_prob)
+        pf_dict["precision"] = metrics.precision_score(y_test, y_pred)
+        pf_dict["recall"] = metrics.recall_score(y_test, y_pred)
+        pf_dict["f1"] = metrics.f1_score(y_test, y_pred)
     else:
-        y_pred = clf.predict(X_test)
-    pf_dict["balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-    pf_dict["precision"] = metrics.precision_score(y_test, y_pred)
-    pf_dict["recall"] = metrics.recall_score(y_test, y_pred)
-    pf_dict["f1"] = metrics.f1_score(y_test, y_pred)
+        y_pred = np.array(clf.predict(X_test).round(), dtype=int) # 1D array (LR, Lasso, SVM)
+        y_prob = clf.predict_proba(X_test) # gives a n by n_class matrix 
+        y_test_onehot = OneHotEncoder().fit_transform(y_test.reshape(-1,1)).toarray()
+        fpr, tpr, _ = metrics.roc_curve(y_test_onehot.ravel(), y_prob.ravel())
+        roc_auc = metrics.auc(fpr, tpr)
+        pf_dict["test_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
+        pf_dict["roc_auc"] = roc_auc
+        pf_dict["precision"] = metrics.precision_score(y_test, y_pred, average="micro")
+        pf_dict["recall"] = metrics.recall_score(y_test, y_pred, average="micro")
+        pf_dict["f1"] = metrics.f1_score(y_test, y_pred, average="micro")
     return pf_dict
 
 
 ## Function that will take X_train, y_train, run all the hyperparameter tuning, and record cross-validation performance 
-def record_tuning(X_train, y_train, X_test, y_test, outfn):
+def record_tuning(X_train, y_train, X_test, y_test, outfn, multiclass=False):
     X_test, y_test = confirm_numpy(X_test, y_test)
     tuner_dict = {
         "LRM" : lrm_cv,
@@ -230,13 +263,13 @@ def record_tuning(X_train, y_train, X_test, y_test, outfn):
     }
     cv_record = pd.DataFrame(
         None, index=tuner_dict.keys(), 
-        columns=["opt_params", "crossval roc/acc", "balanced_acc", "precision", "recall", "f1"]
+        columns=["opt_params", "crossval_acc", "test_acc", "roc_auc", "precision", "recall", "f1"]
     )
     for model_key in tuner_dict.keys():
         opt_params, opt_score, clf = tuner_dict[model_key](X_train, y_train)
         cv_record.loc[model_key]["opt_params"] = str(opt_params)
-        cv_record.loc[model_key]["crossval roc/acc"] = opt_score
-        pf_dict = evaluate_model(clf, X_test, y_test)
+        cv_record.loc[model_key]["crossval_acc"] = opt_score
+        pf_dict = evaluate_model(clf, X_test, y_test, multiclass=multiclass)
         for pf_key in pf_dict:
             cv_record.loc[model_key][pf_key] = pf_dict[pf_key]
     cv_record.to_csv(outfn, header=True, index=True)
@@ -295,7 +328,7 @@ def record_tuning_NMF(X_train, y_train, X_test, y_test, outfn, k_list=None):
 
     cv_record = pd.DataFrame(
         None, index=np.arange(len(list(tuner_dict))*len(k_list)),
-        columns=["model", "NMF_k", "opt_params", "crossval roc/acc", "balanced_acc", "precision", "recall", "f1"]
+        columns=["model", "NMF_k", "opt_params", "crossval_acc", "test_acc", "roc_auc", "precision", "recall", "f1"]
     )
 
     # fill in models and NMF_k by all possible combinations
@@ -312,7 +345,7 @@ def record_tuning_NMF(X_train, y_train, X_test, y_test, outfn, k_list=None):
                 [x == k for x in cv_record["NMF_k"]]
             )
             cv_record.loc[bool_loc, [x == "opt_params" for x in cv_record.columns]] = str(opt_params)
-            cv_record.loc[bool_loc, [x == "crossval roc/acc" for x in cv_record.columns]] = opt_score
+            cv_record.loc[bool_loc, [x == "crossval_acc" for x in cv_record.columns]] = opt_score
             pf_dict = evaluate_model(clf, F_test, y_test)
             for pf_key in pf_dict:
                 cv_record.loc[bool_loc, [x == pf_key for x in cv_record.columns]] = pf_dict[pf_key]
