@@ -8,6 +8,7 @@
 #SBATCH --job-name="nmftwo005cv"
 #SBATCH --output=~/pd_project/amppd_outputs/amppd_baseline_record_crossval.out
 
-module load python/anaconda3
+. ~/anaconda3/etc/profile.d/conda.sh
+conda activate pdenv
 
 python pd_project/scripts/amppd_baseline_record_crossval.py
