@@ -7,7 +7,7 @@
 #SBATCH --mail-user=<email>
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --job-name="av"
-#SBATCH --output=~/pd_project/amppd_outputs/210115_annovar_amppd_chr1.out
+#SBATCH --output=pd_project/amppd_outputs/210115_annovar_amppd_chr1.out
 
 module load perl
 

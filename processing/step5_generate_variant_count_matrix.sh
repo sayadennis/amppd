@@ -6,8 +6,9 @@
 #SBATCH --mail-user=<email>
 #SBATCH --mail-type=END,FAIL
 #SBATCH --job-name="vc_mx"
-#SBATCH --output=~/pd_project/amppd_outputs/210301_generate_vc_matrix.out
+#SBATCH --output=pd_project/amppd_outputs/210301_generate_vc_matrix.out
 
-module load python/anaconda3.6
+. ~/anaconda3/etc/profile.d/conda.sh
+conda activate pdenv
 
-python pd_project/scripts/210301_generate_vc_matrix.py
+python pd_project/scripts/step5_generate_variant_count_matrix.py

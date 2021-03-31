@@ -8,8 +8,9 @@
 #SBATCH --mail-user=<email>
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --job-name="himem_delmuts"
-#SBATCH --output=~/pd_project/amppd_outputs/step4_filter_deleterious_himem.out
+#SBATCH --output=pd_project/amppd_outputs/step4_filter_deleterious_himem.out
 
-module load python/anaconda3.6
+. ~/anaconda3/etc/profile.d/conda.sh
+conda activate pdenv
 
 python pd_project/scripts/step4_filter_deleterious.py

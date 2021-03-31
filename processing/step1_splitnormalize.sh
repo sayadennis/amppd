@@ -7,7 +7,7 @@
 #SBATCH --mail-user=<email>
 #SBATCH --mail-type=END,FAIL
 #SBATCH --job-name="splitnorm"
-#SBATCH --output=~/pd_project/amppd_outputs/splitnorm.out
+#SBATCH --output=pd_project/amppd_outputs/splitnorm.out
 
 module load bcftools/1.4-6
 

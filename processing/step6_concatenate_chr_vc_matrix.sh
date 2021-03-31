@@ -8,6 +8,7 @@
 #SBATCH --job-name="cat_vcmx"
 #SBATCH --output=pd_project/amppd_outputs/concatenate_chr_vc_matrix.out
 
-module load python/anaconda3.6
+. ~/anaconda3/etc/profile.d/conda.sh
+conda activate pdenv
 
-python pd_project/scripts/210308_concatenate_chr_vc_matrix.py
+python pd_project/scripts/step6_concatenate_chr_vc_matrix.py

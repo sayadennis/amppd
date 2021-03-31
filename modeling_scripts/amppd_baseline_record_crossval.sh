@@ -6,7 +6,7 @@
 #SBATCH --mail-user=sayarenedennis@northwestern.edu
 #SBATCH --mail-type=END,FAIL
 #SBATCH --job-name="nmftwo005cv"
-#SBATCH --output=~/pd_project/amppd_outputs/amppd_baseline_record_crossval.out
+#SBATCH --output=pd_project/amppd_outputs/amppd_baseline_record_crossval.out
 
 . ~/anaconda3/etc/profile.d/conda.sh
 conda activate pdenv

@@ -22,6 +22,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import GridSearchCV
 from sklearn import metrics
+from numpy import interp
 
 # dimensionality reduction 
 from sklearn.decomposition import NMF
@@ -239,13 +240,28 @@ def evaluate_model(clf, X_test, y_test, multiclass=False):
         y_pred = np.array(clf.predict(X_test).round(), dtype=int) # 1D array (LR, Lasso, SVM)
         y_prob = clf.predict_proba(X_test) # gives a n by n_class matrix 
         y_test_onehot = OneHotEncoder().fit_transform(y_test.reshape(-1,1)).toarray()
-        fpr, tpr, _ = metrics.roc_curve(y_test_onehot.ravel(), y_prob.ravel())
-        roc_auc = metrics.auc(fpr, tpr)
+        ## Micro-averaged ROC
+        # fpr, tpr, _ = metrics.roc_curve(y_test_onehot.ravel(), y_prob.ravel())
+        # roc_auc = metrics.auc(fpr, tpr)
+        ## Macro-averaged ROC ?? 
+        # fpr = dict()
+        # tpr = dict()
+        # roc_auc = dict()
+        # for i in range(3): # 3 = n_classes
+        #     fpr[i], tpr[i], _ = metrics.roc_curve(y_test_onehot[:,i], y_prob[:,i])
+        #     roc_auc[i] = metrics.auc(fpr[i], tpr[i])
+        # all_fpr = np.unique(np.concatenate([fpr[i] for i in range(3)])) # 3 = n_classes
+        # mean_tpr = np.zeros_like(all_fpr)
+        # for i in range(3):
+        #     mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+        # mean_tpr /= 3
+        # roc_auc = metrics.auc(all_fpr, mean_tpr)
+        # Record metrics in performance dictionary
         pf_dict["test_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-        pf_dict["roc_auc"] = roc_auc
-        pf_dict["precision"] = metrics.precision_score(y_test, y_pred, average="micro")
-        pf_dict["recall"] = metrics.recall_score(y_test, y_pred, average="micro")
-        pf_dict["f1"] = metrics.f1_score(y_test, y_pred, average="micro")
+        pf_dict["roc_auc"] = metrics.roc_auc_score(y_test_onehot, y_prob) # roc_auc 
+        pf_dict["precision"] = metrics.precision_score(y_test, y_pred, average="macro")
+        pf_dict["recall"] = metrics.recall_score(y_test, y_pred, average="macro")
+        pf_dict["f1"] = metrics.f1_score(y_test, y_pred, average="macro")
     return pf_dict
 
 

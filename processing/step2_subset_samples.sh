@@ -7,7 +7,7 @@
 #SBATCH --mail-user=<email>
 #SBATCH --mail-type=END,FAIL
 #SBATCH --job-name="subsam"
-#SBATCH --output=~/pd_project/amppd_outputs/subsetsamples.out
+#SBATCH --output=pd_project/amppd_outputs/subsetsamples.out
 
 module load bcftools/1.4-6
 module load htslib/1.10.1 # for tabix
@@ -28,11 +28,11 @@ subsetsample () {
         -O z \
         -o ${dout}/${fout} \
         --trim-alt-alleles \
-        --samples-file "/home/srd6051/sampleset_amppd/AMPPD_BF_samplenames.txt" \
+        --samples-file "${dsampleset}/AMPPD_BF_samplenames.txt" \
         ${fin}
     tabix -p vcf ${dout}/${fout}
     # Next take care of the PD and PP subsets
-    for samplefn in $(ls /home/srd6051/sampleset_amppd/AMPPD_*_samplenames_[1-3].[1-2].txt); do
+    for samplefn in $(ls ${dsampleset}/AMPPD_*_samplenames_[1-3].[1-2].txt); do
         # Check if the below if...else statement works to obtain list of output file name
         # fout=<output_file.vcf.gz>
         if [[ $samplefn == ${dsampleset}"/AMPPD_PD_samplenames_1.1.txt" ]]; then
