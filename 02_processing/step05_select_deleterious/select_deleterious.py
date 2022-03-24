@@ -54,7 +54,7 @@ for j in range(len(sampleids)):
 va = pd.read_csv(fin, sep='\t', skiprows=1, header=None, na_values='.', dtype=dtype_dict) # skiprows=1 b/c header's columns don't match actual columns
 
 # fill in column names of input file 
-va.columns = colnames
+va.columns = all_colnames
 
 ###############################################
 #### Select only the deleterious mutations ####

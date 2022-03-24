@@ -8,25 +8,10 @@
 #SBATCH --job-name="submit_av_loop"
 #SBATCH --output=pd_project/out/step4_run_annovar.out
 
-# for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_*.sh); do
-#     sbatch $fn
-# done
-
-for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_chr2_subset[3-9]*.sh); do
+for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_chr*_subset*.sh); do
     sbatch $fn
+    sleep 2
 done
-
-# for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_chr2[0-2]_*.sh); do
-#     sbatch $fn
-# done
-
-# for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_chr1[0-9]_*.sh); do
-#     sbatch $fn
-# done
-
-# for fn in $(ls pd_project/codes/02_processing/step4_run_annovar/run_annovar_chr[3-9]_*.sh); do
-#     sbatch $fn
-# done
 
 # module load perl
 
