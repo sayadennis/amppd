@@ -15,7 +15,7 @@ cln = pd.read_csv(f'{dcln}/clinical_int_label.csv', index_col=0)
 ########################################
 
 ## Will remove: 
-# Participants who do not simply fall into case/control category 
+# Participants who do not simply fall into case/control category (label changes over time)
 # Participants who do not have both WGS and clinical data
 
 ## Remove participants with missing label
