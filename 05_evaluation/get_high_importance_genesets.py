@@ -1,5 +1,3 @@
-# from distutils.command.clean import clean
-# from sre_parse import _OpGroupRefExistsType
 import numpy as np
 import pandas as pd
 import pickle
@@ -51,7 +49,7 @@ y_train, y_test = y.iloc[train_ix[0]], y.iloc[test_ix[0]]
 ##############################################
 
 #### How many of the top features combined make up 50% of the feature importance? #### 
-n_features_keep = np.where(np.cumsum(m.feature_importances_[np.argsort(-1*m.feature_importances_)])<=.5)[0][-1] # 270
+n_features_keep = np.where(np.cumsum(m.feature_importances_[np.argsort(-1*m.feature_importances_)])<=.5)[0][-1]
 
 gene_list = list(X.columns[np.argsort(-1*m.feature_importances_)[:n_features_keep]])
 
@@ -67,6 +65,9 @@ def clean_genelist(gene_ls):
     return cleaned_list
 
 cleaned_gene_list = clean_genelist(gene_list)
+
+if len(cleaned_gene_list)>500:
+    cleaned_gene_list = cleaned_gene_list[:500] # can only input 500 genes for MsigDB GSEA 
 
 ## Save gene list into a text file 
 with open(f'{itpdir}/high_importance_genes_20220324_saved_best_XGB_vc_mx.txt', 'w') as f:

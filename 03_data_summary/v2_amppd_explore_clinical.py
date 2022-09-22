@@ -100,36 +100,98 @@ avail.to_csv(f'{dout}/data_availability_summary.csv', header=True, index=False)
 #### Assess presence of longitudinal data ####
 ##############################################
 
-for datatype in fdict.keys():
-    if datatype=='Clinical Score':
-        for fn in fdict[datatype]:
-            dataname = fn.split('.')[0]
-            data = pd.read_csv(f'{din}/clinical/{fn}')
-            plt.hist(data['visit_month'])
-            plt.title(f'Longitudinal data availability for {dataname}')
-            plt.xlabel('Months')
-            plt.ylabel('#Patients w/ observations')
-            plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
-            plt.close()
-    elif datatype=='Imaging':
-        fn = 'Biospecimen_analyses_CSF_abeta_tau_ptau.csv'
-        dataname = fn.split('.')[0]
-        data = pd.read_csv(f'{din}/clinical/{fn}')
-        plt.hist(data['visit_month'])
-        plt.title(f'Longitudinal data availability for {dataname}')
-        plt.xlabel('Months')
-        plt.ylabel('#Patients w/ observations')
-        plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
-        plt.close()
-    elif datatype=='Demographic':
-        fn = 'PD_Medical_History.csv'
-        dataname = fn.split('.')[0]
-        data = pd.read_csv(f'{din}/clinical/{fn}')
-        plt.hist(data['visit_month'])
-        plt.title(f'Longitudinal data availability for {dataname}')
-        plt.xlabel('Months')
-        plt.ylabel('#Patients w/ observations')
-        plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
-        plt.close()
+## First remove the data that are not longitudinal (determined from exploratory plots)
+fdict['Clinical Score'].remove('LBD_Cohort_Clinical_Data.csv')
+fdict['Clinical Score'].remove('LBD_Cohort_Path_Data.csv')
+fdict['Clinical Score'].remove('MMSE.csv')
+
+## Plot clinical scores availability in one figure 
+fig, axs = plt.subplots(nrows=3, ncols=4, figsize=(10,7))
+for i in range(12): # len(fdict['Clinical Score']) = 15
+    fn = fdict['Clinical Score'][i]
+    data = pd.read_csv(f'{din}/clinical/{fn}')
+    dataname = fn.split('.')[0]
+    axs[i//4, i%4].hist(data['visit_month'])
+    axs[i//4, i%4].set_xlabel('Months')
+    if dataname=='REM_Sleep_Behavior_Disorder_Questionnaire_Mayo':
+        axs[i//4, i%4].set_title('REM_Sleep_Mayo')
+    elif dataname=='REM_Sleep_Behavior_Disorder_Questionnaire_Stiasny_Kolster':
+        axs[i//4, i%4].set_title('REM_Sleep_StiasnyKolster')
+    elif dataname=='Modified_Schwab___England_ADL':
+        axs[i//4, i%4].set_title('Mod_Schwab_Eng_ADL')
     else:
-        continue
+        axs[i//4, i%4].set_title(dataname)
+    #
+    if i%4==0:
+        axs[i//4, i%4].set_ylabel('#Patients w/ observations')
+    # 
+    fig.suptitle('Longitudinal Data Availability')
+
+fig.tight_layout()
+fig.savefig(f'{dout}/longitudinal_data_availability/all_clinscore_longavail.png')
+plt.close()
+
+## Plot histograms of number of timepoints available per patient 
+fig, axs = plt.subplots(nrows=3, ncols=4, figsize=(10,7))
+for i in range(12): # len(fdict['Clinical Score']) = 15
+    fn = fdict['Clinical Score'][i]
+    data = pd.read_csv(f'{din}/clinical/{fn}')
+    num_obs = [data.iloc[data.participant_id.values==x,:].shape[0] for x in data.participant_id.unique()]
+    dataname = fn.split('.')[0]
+    axs[i//4, i%4].hist(num_obs)
+    if dataname=='REM_Sleep_Behavior_Disorder_Questionnaire_Mayo':
+        axs[i//4, i%4].set_title('REM_Sleep_Mayo')
+    elif dataname=='REM_Sleep_Behavior_Disorder_Questionnaire_Stiasny_Kolster':
+        axs[i//4, i%4].set_title('REM_Sleep_StiasnyKolster')
+    elif dataname=='Modified_Schwab___England_ADL':
+        axs[i//4, i%4].set_title('Mod_Schwab_Eng_ADL')
+    else:
+        axs[i//4, i%4].set_title(dataname)
+    #
+    if i//4==2:
+        axs[i//4, i%4].set_xlabel('Number of observations')
+    # 
+    if i%4==0:
+        axs[i//4, i%4].set_ylabel('Patient counts')
+    # 
+    fig.suptitle('Number of Longitudinal Observations Per Patient')
+
+fig.tight_layout()
+fig.savefig(f'{dout}/longitudinal_data_availability/all_clinscore_num_obs_per_patient.png')
+plt.close()
+
+
+
+# for datatype in fdict.keys():
+#     if datatype=='Clinical Score':
+#         for fn in fdict[datatype]:
+#             dataname = fn.split('.')[0]
+#             data = pd.read_csv(f'{din}/clinical/{fn}')
+#             plt.hist(data['visit_month'])
+#             plt.title(f'Longitudinal data availability for {dataname}')
+#             plt.xlabel('Months')
+#             plt.ylabel('#Patients w/ observations')
+#             plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
+#             plt.close()
+#     elif datatype=='Imaging':
+#         fn = 'Biospecimen_analyses_CSF_abeta_tau_ptau.csv'
+#         dataname = fn.split('.')[0]
+#         data = pd.read_csv(f'{din}/clinical/{fn}')
+#         plt.hist(data['visit_month'])
+#         plt.title(f'Longitudinal data availability for {dataname}')
+#         plt.xlabel('Months')
+#         plt.ylabel('#Patients w/ observations')
+#         plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
+#         plt.close()
+#     elif datatype=='Demographic':
+#         fn = 'PD_Medical_History.csv'
+#         dataname = fn.split('.')[0]
+#         data = pd.read_csv(f'{din}/clinical/{fn}')
+#         plt.hist(data['visit_month'])
+#         plt.title(f'Longitudinal data availability for {dataname}')
+#         plt.xlabel('Months')
+#         plt.ylabel('#Patients w/ observations')
+#         plt.savefig(f'{dout}/longitudinal_data_availability/{dataname}_longavail.png')
+#         plt.close()
+#     else:
+#         continue
